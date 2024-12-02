@@ -82,7 +82,7 @@ blockquote {
 }
 
 /* form styling aaaaa */
-form {
+form, form > div {
 	display: flex;
 	flex-direction: column;
 	gap: 0.25em;

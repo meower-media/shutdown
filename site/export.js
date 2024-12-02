@@ -1,14 +1,24 @@
 const loginBox = document.getElementById("login-box");
 const loginForm = document.getElementById("login-form");
 const loginError = document.getElementById("login-error");
+const mfaBox = document.getElementById("mfa-box");
 const exportBox = document.getElementById("export-box");
 const exportDownloadButton = document.getElementById("export-download");
 const exportDeleteButton = document.getElementById("export-delete");
 
 loginBox.hidden = false;
+mfaBox.style.display = "none";
 
 loginForm.addEventListener("submit", async (event) => {
 	event.preventDefault();
+
+	loginError.hidden = true;
+
+	if (mfaBox.style.display === "none") {
+		for (const elem of mfaBox.childNodes) {
+			elem.value = "";
+		}
+	}
 
 	const data = new FormData(loginForm);
 
@@ -23,12 +33,16 @@ loginForm.addEventListener("submit", async (event) => {
 		if (loginResponse.type === "mfaRequired") {
 			loginError.hidden = false;
 			loginError.innerText = "2FA Required";
+			mfaBox.style.display = "flex";
 		} else if (loginResponse.type === "Unauthorized") {
 			loginError.hidden = false;
-			loginError.innerText = "Invalid username or password";
+			loginError.innerText = "Invalid credentials";
 		} else if (loginResponse.type === "Internal") {
 			loginError.hidden = false;
 			loginError.innerText = "Internal error";
+		} else if (loginResponse.type === "tooManyRequests") {
+			loginError.hidden = false;
+			loginError.innerText = "Too many requests! Please try again later.";
 		} else {
 			loginError.hidden = false;
 			loginError.innerText = `Unknown error: ${loginResponse.type}`;
@@ -87,6 +101,7 @@ async function onDelete(token) {
 			alert("Error deleting account: " + resp.type);
 		} else {
 			alert("Account deleted successfully");
+			location.reload();
 		}
 	}
 }

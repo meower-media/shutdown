@@ -44,19 +44,21 @@
 						required
 					/>
 					<br />
-					<label for="totp_code">2FA code:</label>
-					<input
-						type="text"
-						name="totp_code"
-						id="totp_code"
-						inputmode="numeric"
-						pattern="[0-9]*"
-						autocomplete="one-time-code"
-					/>
-					<br />
-					<label for="mfa_recovery_code">MFA recovery code:</label>
-					<input type="text" name="mfa_recovery_code" id="mfa_recovery_code" />
-					<br />
+					<div id="mfa-box">
+						<label for="totp_code">2FA code:</label>
+						<input
+							type="text"
+							name="totp_code"
+							id="totp_code"
+							inputmode="numeric"
+							pattern="[0-9]*"
+							autocomplete="one-time-code"
+						/>
+						<br />
+						<label for="mfa_recovery_code">MFA recovery code:</label>
+						<input type="text" name="mfa_recovery_code" id="mfa_recovery_code" />
+						<br />
+					</div>
 					<input type="submit" value="Login" />
 				</form>
 			</div>
