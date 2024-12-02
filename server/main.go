@@ -168,7 +168,7 @@ func (u *User) GetToken() (string, error) {
 		"sub": u.Id,
 		"iss": "Meower",
 		"iat": time.Now().Unix(),
-		"exp": time.Now().Add(time.Hour * 24).Unix(),
+		"exp": time.Now().Add(time.Minute * 30).Unix(),
 	}).SignedString([]byte(os.Getenv("JWT_SECRET")))
 }
 
@@ -237,6 +237,34 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// Get all users for ulist
+	users := []User{}
+	usernames := []string{}
+	ulist := ""
+	rows, _ := db.Query(`
+	SELECT
+	id,
+	username,
+	lower_username,
+	legacy_avatar,
+	created_at,
+	last_seen_at
+	FROM users ORDER BY last_seen_at DESC`)
+	for rows.Next() {
+		var u User
+		rows.Scan(
+			&u.Id,
+			&u.Username,
+			&u.LowerUsername,
+			&u.LegacyAvatar,
+			&u.CreatedAt,
+			&u.LastSeenAt,
+		)
+		users = append(users, u)
+		usernames = append(usernames, u.Username)
+		ulist = strings.Join(usernames, ";")
+	}
+
 	// Create router
 	r := chi.NewRouter()
 
@@ -277,6 +305,15 @@ func main() {
 			"users": 0,
 			"chats": 0,
 			"posts": 0,
+		})
+		w.Write(marshaled)
+	})
+	r.Get("/ulist", func(w http.ResponseWriter, r *http.Request) {
+		marshaled, _ := json.Marshal(map[string]interface{}{
+			"error":   false,
+			"autoget": users,
+			"page#":   1,
+			"pages":   1,
 		})
 		w.Write(marshaled)
 	})
@@ -514,14 +551,19 @@ func main() {
 		var version int
 		version, _ = strconv.Atoi(r.URL.Query().Get("v"))
 
+		// ulist
+		conn.WriteJSON(map[string]string{
+			"cmd": "ulist",
+			"val": ulist,
+		})
+
 		// Automatic auth
 		if r.URL.Query().Has("token") && version == 1 {
 			u := getUserByToken(r.URL.Query().Get("token"))
 			if u != nil {
-				token, _ := u.GetToken()
 				p := map[string]interface{}{
 					"username":      u.Username,
-					"token":         token,
+					"token":         r.URL.Query().Get("token"),
 					"account":       u,
 					"relationships": []interface{}{},
 					"chats":         []interface{}{},
@@ -615,6 +657,16 @@ func main() {
 			// Get listener
 			listener, _ := msg["listener"].(string)
 
+			// Trusted access
+			if (msg["cmd"] == "direct" || msg["cmd"] == "gmsg") && msg["val"] == "meower" {
+				conn.WriteJSON(map[string]string{
+					"cmd":      "statuscode",
+					"val":      "I:100 | OK",
+					"listener": listener,
+				})
+				continue
+			}
+
 			// Unwrap direct
 			if msg["cmd"] == "direct" {
 				var ok bool
@@ -652,7 +704,7 @@ func main() {
 
 				u := getUserByToken(password)
 				if u == nil {
-					u := getUserByUsername(username)
+					u = getUserByUsername(username)
 					if u == nil {
 						conn.WriteJSON(map[string]string{
 							"cmd":      "statuscode",
@@ -704,6 +756,11 @@ func main() {
 					}
 				}
 				conn.WriteJSON(p)
+				conn.WriteJSON(map[string]string{
+					"cmd":      "statuscode",
+					"val":      "I:100 | OK",
+					"listener": listener,
+				})
 
 				var exportUrl *url.URL
 				exportUrl, err = s3.PresignedGetObject(context.TODO(), os.Getenv("S3_BUCKET"), u.Id+".zip", time.Minute*30, url.Values{})
